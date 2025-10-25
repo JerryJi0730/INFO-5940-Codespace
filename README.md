@@ -1,92 +1,72 @@
-# INFO 5940 
-Welcome to the INFO 5940 repository. You will complete your work using [**GitHub Codespaces**](#about-github-codespaces) and save your progress in your own GitHub repository. This guide will walk you through setting up the development environment and running the test notebook.  
+# File Q&A (Streamlit) — README
 
-## Getting Started 
+Overview
+- Small Streamlit app that indexes uploaded text and PDF documents, stores chunk embeddings in Chroma, and answers user questions with a retrieval-augmented generation (RAG) workflow.
+- Uses OpenAI-compatible API for embeddings and chat completions (via OpenAI SDK + LangChain helpers + Chroma).
+- Supports multiple-file upload and interactive chat history in the Streamlit UI.
 
-### Step 1: Fork this repository 
-1. Click the **Fork** button (top right of this page).
-2. This will create a copy of the repo under **your own GitHub account**.
+Features
+- Upload one or more .txt / .md / .pdf files.
+- Automatic text extraction from PDFs.
+- Chunking of documents (configurable chunk size / overlap in the code).
+- Indexing into a Chroma vector store (per uploaded document).
+- Cross-document retrieval and concise answers from a chat model.
+- Session caching of indexed vectorstores to avoid re-indexing during the session.
 
-Forking creates a personal copy of the repo under **your** GitHub account.  
-- You can commit, push, and experiment freely.  
-- Your work stays separate from the official class materials.
+Quick start (devcontainer / Debian bookworm)
+1. Open the devcontainer workspace in VS Code (already set up for this repo).
+2. Install Python dependencies:
+   - From the workspace root:
+     - python3 -m pip install --upgrade pip
+     - pip3 install -r requirements.txt
+   - If you get missing package errors, install these explicitly:
+     - pip3 install chromadb pypdf langchain chroma-langchain
+     - (The project uses langchain_openai / langchain_chroma wrappers — ensure matching packages are present.)
+3. Ensure API keys and base URL are set in the environment the app runs in:
+   - Example (Linux / devcontainer terminal):
+     - export API_KEY="sk-...."           # preferred variable used by this app
+   - Verify:
+     - python3 -c "import os; print('API_KEY=', bool(os.environ.get('API_KEY')), 'OPENAI_API_KEY=', bool(os.environ.get('OPENAI_API_KEY')))"
+4. Run the app:
+   - streamlit run /workspaces/INFO-5940-Codespace/chat_with_pdf.py
+   - The terminal will print the local URL (e.g., http://localhost:8501). In this devcontainer you can open it using:
+     - "$BROWSER" http://localhost:8501
 
-### Step 2: Open your forked repo Codespace
-1. Go to **your forked repo**.
-2. Click the green **Code** button and switch to the **Codespaces** tab.  
-3. Select **Create Codespace**.
-4. Wait a few minutes for the environment to finish setting up.
+Configuration notes / environment
+- The app reads API keys from API_KEY (primary) and exposes the same value to OPENAI_API_KEY for LangChain compatibility.
+- Model selection:
+  - CHAT_MODEL and EMBEDDING_MODEL can be set via environment variables OPENAI_MODEL and EMBEDDING_MODEL.
+- Chroma:
+  - Collections are created per uploaded file. Names are sanitized to meet Chroma naming rules.
+  - The app currently uses in-memory or default Chroma configuration. To persist the DB, modify the Chroma initialization in the code to set persist_directory.
 
-### Step 3: Verify your environment 
-Once the Codespace is ready: 
-1. If you are in `<your-file-name>.ipynb` in your codespace.
-2. Install the Python 3.11.13 Kernel.  In the top-right corner, click **Select Kernel**.
-    1. If **Install/Enable suggested extensions Python + Jupyter** appears, select it, and wait for the install to finish before moving on to the next step.
-    2. Select **Python Environments** choose **Python 3.11.13 (first option)**.
-3. Run the code block to check your setup. 
+Changes made (code-level)
+- chat_with_pdf.py:
+  - Added robust file decoding helper (utf-8, latin-1, fallback).
+  - Added PDF extraction (pypdf / PyPDF2).
+  - Added chunking using RecursiveCharacterTextSplitter -> LangChain documents.
+  - Added per-file Chroma indexing with OpenAIEmbeddings (indexing cached in st.session_state["vectorstores"]).
+  - Sanitized Chroma collection names to satisfy allowed characters/length.
+  - Enabled multiple file uploads and cross-document retrieval aggregation and deduplication.
+  - Exposed OPENAI_API_KEY / OPENAI_BASE_URL environment variables for LangChain/OpenAI helper libs.
+  - Minimal UI updates: preview (first file), chat history preserved in session_state.
+- No other configuration files were overwritten. If you keep requirements in sync you should be able to install needed libs.
 
-## About GitHub Codespaces
+Troubleshooting
+- Authentication (401):
+  - Confirm API_KEY / OPENAI_API_KEY present in the environment used to launch Streamlit.
+  - Restart Streamlit after changing env vars.
+- Missing libraries:
+  - ModuleNotFoundError: install via pip3 install pypdf chromadb langchain langchain_openai langchain_chroma
+- Chroma collection name errors:
+  - Filenames with special characters may fail — the app sanitizes names but if you still see errors, rename files to simple ASCII alphanumerics or update sanitize function.
+- numpy dtype / binary incompatibility:
+  - Recreate venv or reinstall numpy and binary dependencies (see earlier notes in repo issues).
+- PDF text extraction blank / partial:
+  - Some PDFs have images or scanned pages — use OCR prior to upload if needed.
 
-[Codespaces](https://docs.github.com/en/codespaces) is a complete software development and execution environment, running in the cloud, with its primary interface being a VSCode instance running in your browser.
+Developer tips
+- To re-index a file during the same session, refresh the Streamlit session or remove the session entry st.session_state["vectorstores"][vs_key] manually.
+- To persist Chroma across sessions, update the Chroma initialization to set a persist_directory and call persist on the client.
 
-Codespaces is not free, but their per-month [free quota](https://docs.github.com/en/billing/concepts/product-billing/github-codespaces#free-quota) is generous.  Codespaces is free under the [GitHub Student Developer Pack](https://education.github.com/pack#github-codespaces).
-
-### Codespaces Tips
-
-* Codespaces keep running even when you close your browser (but will time out and stop after a while)
-* Unless you're on a free plan, or within your free quota, costs acrue while the codespace is running, whether or not you have it open in your browser or are working on it
-* You can control when it's running, and the space it takes up.  Check out [GitHub's codespaces lifecycle documentation](https://docs.github.com/en/codespaces/about-codespaces/understanding-the-codespace-lifecycle)
-
-## Sync Updates 
-To make sure your personal forked repository stays up to date with the original class repository, please follow these steps:
-1. Open your forked repo.
-2. At the top of the page, you should see a banner or menu option that shows whether your fork is behind the original repo.
-3. Click the **Sync fork** button.
-4. In the dropdown, choose **Update branch** to pull the latest changes from the original repo into your fork.
-
-Optionally, you can also follow these steps to create a new branch on your fork:
-1. Open your **forked repository** on GitHub.  
-2. At the top of the page, next to the branch dropdown, click the **Branches** button.  
-3. In the **Branches** view, click the green **New Branch** button.  
-4. In the popup window, enter a branch name.  
-   - You can use any name you like, but it’s recommended to match the branch name used in class for better organization.  
-5. Under **Branch source**, select:  
-   - **Repository:** `AyhamB/INFO-5940-Codespace`  
-   - **Branch:** choose the branch you want to sync from (e.g., `streamlit`).  
-6. Click the green **Create New Branch** button.  
-7. Verify that you’re now back in **your fork**, on the new branch you just created.  
-8. Click the **Code** button and create a new Codespace (if you don’t already have one).  
-   - Make sure the Codespace is created from the **current branch**.
-  
-## Running a Streamlit App on Codespaces  
-Follow these steps to launch and view your Streamlit app in GitHub Codespaces:
-1. **Open the terminal** inside your Codespace.
-2. Run the command:  
-   ```bash
-   streamlit run your-file-name.py
-   ```  
-   **(Replace `your-file-name.py` with the actual name of your Streamlit app file, e.g., `hello_app.py`.)**
-3. After pressing **Enter**, a popup should appear in the bottom-right corner of Codespace editor.  
-   - Click **“Open in Browser”** to view your app.  
-
-   ⚠️ *If you miss the popup:*  
-   - Press **Ctrl + C** in the terminal to stop the app.  
-   - Rerun the command from step 2 — the popup should appear again.
-4. A new browser tab will open, showing the interface of your Streamlit app.
-5. **Make changes to your code** in the Codespace editor.  
-   - Refresh the browser tab to see the updated version of your app.  
-
-## Setting Your API Key in GH Codespaces
-You will receive an individual API Key for class assignments. To prevent accidental exposure online, please follow the steps below to securely insert your key in the terminal.
-1. **Open the terminal** inside your Codespace.
-2. Run the command to temporarily set your API Key for this session:  
-   ```bash
-   export API_KEY="your_actual_API_KEY"
-   ```
-3. If you want to run the Streamlit app and set up the key at the same time, run both commands together:
-   ```bash
-   API_KEY="your_actual_API_KEY" streamlit run your-file-name.py
-   ```
-
-## Troubleshooting
-- The Jupyter extension should install automatically. If you still cannot select a Python kernel on Jupyter Notebook: Go to the left sidebar >> **Extensions** >> search for **Jupyter** >> reload window (or reinstall it).   
+If you want, I can produce a minimal requirements.txt diff or a small helper script to validate environment variables before running.
